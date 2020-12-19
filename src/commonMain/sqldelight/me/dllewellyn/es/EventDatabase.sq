@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS eventsTable(
+    event_uuid TEXT NOT NULL PRIMARY KEY,
+    item_uuid TEXT NOT NULL,
+    event TEXT NOT NULL
+);
+
+insertEvent:
+INSERT INTO eventsTable VALUES ?;
+
+eventsForItemUuid:
+SELECT * FROM eventsTable WHERE item_uuid = :itemUuid;
+
+allEvents:
+SELECT * FROM eventsTable;
