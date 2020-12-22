@@ -1,8 +1,8 @@
 package me.danielllewellyn.es
 
 import com.squareup.sqldelight.db.SqlDriver
-import me.daniellewellyn.es.Events
 import com.squareup.sqldelight.drivers.native.NativeSqliteDriver
+import me.daniellewellyn.es.Events
 
 actual class ESDriverFactory {
 

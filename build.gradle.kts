@@ -63,7 +63,15 @@ kotlin {
     jvm()
 
     if (iosEnabled) {
-        ios {
+        iosArm64("ios"){
+            binaries {
+                framework {
+                    baseName = "event-sourcing"
+                }
+            }
+        }
+
+        iosX64 {
             binaries {
                 framework {
                     baseName = "event-sourcing"
@@ -111,6 +119,12 @@ kotlin {
                 }
             }
             val iosTest by getting
+            val iosX64Main by getting {
+                dependencies {
+                    implementation("org.jetbrains.kotlin:kotlin-stdlib")
+                    implementation("com.squareup.sqldelight:native-driver:$sqlDelight")
+                }
+            }
         }
 
         val jvmTest by getting {
