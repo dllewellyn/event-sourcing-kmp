@@ -1,6 +1,6 @@
 package me.danielllewellyn.es.internal.util
 
-import me.danielllewellyn.es.ESReducer
+import me.danielllewellyn.es.interfaces.ESReducer
 import me.danielllewellyn.es.model.EventModel
 
 internal class ChainedEsReducer<State, Event>(private val list: List<ESReducer<State, Event>>) :

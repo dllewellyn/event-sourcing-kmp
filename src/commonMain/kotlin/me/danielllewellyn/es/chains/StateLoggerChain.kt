@@ -1,12 +1,10 @@
 package me.danielllewellyn.es.chains
 
-import me.danielllewellyn.es.ESReducer
-import me.danielllewellyn.es.model.EventModel
+import me.danielllewellyn.es.interfaces.ESStateListener
 
-class StateLoggerChain<State, Event>(private val logger: (String) -> Unit) : ESReducer<State, Event> {
-
-    override fun State.reduce(event: EventModel<Event>): State {
-        logger("Got state $this")
-        return this
+class StateLoggerChain<State>(private val logger: (String) -> Unit) : ESStateListener<State> {
+    override suspend fun onState(state: State) {
+        logger("Got state $state")
     }
+
 }

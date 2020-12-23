@@ -1,4 +1,4 @@
-package me.danielllewellyn.es
+package me.danielllewellyn.es.interfaces
 
 import me.danielllewellyn.es.model.EventModel
 

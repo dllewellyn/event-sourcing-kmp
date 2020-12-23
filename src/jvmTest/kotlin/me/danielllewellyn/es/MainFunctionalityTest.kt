@@ -1,46 +1,24 @@
 package me.danielllewellyn.es
 
+import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.*
-import kotlinx.serialization.Serializable
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
 import me.daniellewellyn.es.Events
 import me.danielllewellyn.es.chains.EventLoggerChain
 import me.danielllewellyn.es.chains.StateLoggerChain
 import me.danielllewellyn.es.chains.StorageChain
-import me.danielllewellyn.es.ESDriverFactory
 import me.danielllewellyn.es.model.EventModel
+import me.danielllewellyn.es.model.NoteEvent
+import me.danielllewellyn.es.model.NoteEventHandler
+import me.danielllewellyn.es.model.NoteState
 import org.junit.Test
-
-// State:
-data class NoteState(val name: String, val body: String)
-
-// Events:
-@Serializable
-sealed class NoteEvent {
-    @Serializable
-    object CreateEvent : NoteEvent()
-
-    @Serializable
-    data class UpdateTitle(val newTitle: String) : NoteEvent()
-}
 
 // Handler implementation
 
-class NoteEventHandler : ESReducer<NoteState, NoteEvent> {
-
-    override fun NoteState.reduce(event: EventModel<NoteEvent>) =
-        when (val v = event.value) {
-            NoteEvent.CreateEvent -> {
-                NoteState("", "")
-            }
-            is NoteEvent.UpdateTitle -> {
-                copy(name = v.newTitle)
-            }
-        }
-}
-
 @ExperimentalCoroutinesApi
 @ObsoleteCoroutinesApi
-class MainTest {
+class MainFunctionalityTest {
 
     @Test
     fun `test that we can setup a sample new title`() {
@@ -51,7 +29,7 @@ class MainTest {
         }
 
         GlobalScope.launch {
-            queue.run()
+            queue.startQueue()
 
             val event = EventModel.new<NoteEvent>(NoteEvent.CreateEvent)
             queue.processEvent(event)
@@ -59,12 +37,11 @@ class MainTest {
 
         }
 
-//        runBlocking {
-//            with(queue.states().take(2).toList()) {
-//                assertThat(first().name).isEmpty()
-//                assertThat(last().name).isEqualTo("NewTitle")
-//            }
-//        }
+        runBlocking {
+//            val queueItem: List<NoteState> = queue.states().take(2).toList()
+//            assertThat(queueItem.first().name).isEmpty()
+//            assertThat(queueItem.last().name).isEqualTo("NewTitle")
+        }
     }
 
     @Test
@@ -80,7 +57,7 @@ class MainTest {
         }
 
         GlobalScope.launch {
-            queue.run()
+            queue.startQueue()
 
             val event = EventModel.new<NoteEvent>(NoteEvent.CreateEvent)
             queue.processEvent(event)
@@ -89,19 +66,9 @@ class MainTest {
         }
 
         runBlocking {
-//            with(queue.states().take(2).toList()) {
-//                assertThat(first().name).isEmpty()
-//                assertThat(last().name).isEqualTo("NewTitle")
-//            }
-
-//            async {
-//                ESEventReplayer(events)
-//                    .events(NoteEvent.serializer())
-//                    .collect { println(it) }
-//            }
-//
-//            delay(10)
-
+//            val queueItem: List<NoteState> = queue.states().take(2).toList()
+//            assertThat(queueItem.first().name).isEmpty()
+//            assertThat(queueItem.last().name).isEqualTo("NewTitle")
         }
     }
 

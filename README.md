@@ -68,3 +68,13 @@ class NoteEventHandler : ESReducer<NoteState, NoteEvents>() {
 }
 ```
 
+# Interfaces
+
+ESReducer - this is used to convert an event into a state
+ESEventListener - this is used to listen for events
+ESState - after all reducers have run, the new state is emitted
+
+# Queue 
+
+You can add an item to a queue when using the queue builder 
+
