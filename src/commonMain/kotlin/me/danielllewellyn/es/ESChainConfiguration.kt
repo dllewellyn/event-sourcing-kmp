@@ -3,7 +3,9 @@ package me.danielllewellyn.es
 import me.danielllewellyn.es.interfaces.ESEventListener
 import me.danielllewellyn.es.interfaces.ESReducer
 import me.danielllewellyn.es.interfaces.ESStateListener
+import me.danielllewellyn.es.internal.util.ChainEsEventListener
 import me.danielllewellyn.es.internal.util.ChainedEsReducer
+import me.danielllewellyn.es.internal.util.ChainedEsStateListener
 
 class ESChainReducerBuilder<State, Event>(private val defaultState: State) {
 
@@ -24,7 +26,12 @@ class ESChainReducerBuilder<State, Event>(private val defaultState: State) {
     }
 
     fun build(): ESEventQueue<State, Event> {
-        return DefaultEventQueue(ChainedEsReducer(list), defaultState)
+        return DefaultEventQueue(
+            ChainedEsReducer(list),
+            ChainEsEventListener(eventList),
+            ChainedEsStateListener(stateList),
+            defaultState
+        )
     }
 
 }
