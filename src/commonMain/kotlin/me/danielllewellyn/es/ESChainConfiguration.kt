@@ -3,15 +3,22 @@ package me.danielllewellyn.es
 import me.danielllewellyn.es.interfaces.ESEventListener
 import me.danielllewellyn.es.interfaces.ESReducer
 import me.danielllewellyn.es.interfaces.ESStateListener
-import me.danielllewellyn.es.internal.util.ChainEsEventListener
+import me.danielllewellyn.es.internal.util.*
+import me.danielllewellyn.es.internal.util.ChainedConditionalESEventListener
+import me.danielllewellyn.es.internal.util.ChainedConditionalEsReducer
 import me.danielllewellyn.es.internal.util.ChainedEsReducer
-import me.danielllewellyn.es.internal.util.ChainedEsStateListener
+
+typealias Conditional<T> = (T) -> Boolean
 
 class ESChainReducerBuilder<State, Event>(private val defaultState: State) {
 
     private val list = mutableListOf<ESReducer<State, Event>>()
     private val stateList = mutableListOf<ESStateListener<State>>()
     private val eventList = mutableListOf<ESEventListener<Event>>()
+
+    private val conditionalList = mutableListOf<Pair<ESReducer<State, Event>, Conditional<Event>>>()
+    private val conditionalEventList = mutableListOf<Pair<ESEventListener<Event>, Conditional<Event>>>()
+
 
     fun chain(reducer: ESReducer<State, Event>) {
         list.add(reducer)
@@ -25,7 +32,18 @@ class ESChainReducerBuilder<State, Event>(private val defaultState: State) {
         eventList.add(event)
     }
 
+    fun conditionalChain(event: ESEventListener<Event>, condition: Conditional<Event>) {
+        conditionalEventList.add(Pair(event, condition))
+    }
+
+    fun conditionalChain(event: ESReducer<State, Event>, condition: Conditional<Event>) {
+        conditionalList.add(Pair(event, condition))
+    }
+
     fun build(): ESEventQueue<State, Event> {
+        eventList.add(ChainedConditionalESEventListener(conditionalEventList))
+        list.add(ChainedConditionalEsReducer(conditionalList))
+
         return DefaultEventQueue(
             ChainedEsReducer(list),
             ChainEsEventListener(eventList),

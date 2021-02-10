@@ -8,10 +8,7 @@ import me.daniellewellyn.es.Events
 import me.danielllewellyn.es.chains.EventLoggerChain
 import me.danielllewellyn.es.chains.StateLoggerChain
 import me.danielllewellyn.es.chains.StorageChain
-import me.danielllewellyn.es.model.EventModel
-import me.danielllewellyn.es.model.NoteEvent
-import me.danielllewellyn.es.model.NoteEventHandler
-import me.danielllewellyn.es.model.NoteState
+import me.danielllewellyn.es.model.*
 import org.junit.Test
 
 // Handler implementation
@@ -49,9 +46,12 @@ class MainFunctionalityTest {
 
         val events = Events(ESDriverFactory().createDriver())
 
-        val queue = queueBuilder<NoteState, NoteEvent>(NoteState("", "")) {
+        val onwardQueue = queueBuilder<Unit, StorageEvent<NoteEvent>>(Unit) {
             chain(EventLoggerChain(::println))
-            chain(StorageChain(events, NoteEvent.serializer()))
+        }
+
+        val queue = queueBuilder<NoteState, NoteEvent>(NoteState("", "")) {
+            chain(StorageChain(events, NoteEvent.serializer(), NoteEvent.serializer(), onwardQueue, "NoteQueue"))
             chain(NoteEventHandler())
             chain(StateLoggerChain(::println))
         }

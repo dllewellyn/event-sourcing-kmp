@@ -18,7 +18,7 @@ interface ESEventQueue<State, Event> {
     fun cachedValue(): State
 }
 
-class DefaultEventQueue<State, Event>(
+open class DefaultEventQueue<State, Event>(
     private val reducer: ESReducer<State, Event>,
     private val eventLogger: ESEventListener<Event>,
     private val stateListener: ESStateListener<State>,
@@ -31,12 +31,15 @@ class DefaultEventQueue<State, Event>(
     private val internalStateHolder = MutableSharedFlow<State>()
     private var cached: State = defaultState
 
+    private var scope: CoroutineScope = GlobalScope
+
     override suspend fun processEvent(event: EventModel<Event>) {
-        eventLogger.onEvent(event)
+        scope.async { eventLogger.onEvent(event) }
         memoryEventQueue.emit(event)
     }
 
     override fun startQueue(context: CoroutineScope) {
+        scope = context
         context.async {
             memoryEventQueue.collect { event ->
                 internalStateHolder.emit(
@@ -61,5 +64,4 @@ class DefaultEventQueue<State, Event>(
     override fun events(): Flow<EventModel<Event>> {
         return memoryEventQueue
     }
-
 }
