@@ -1,3 +1,5 @@
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=dllewellyn_event-sourcing-kmp&metric=alert_status)](https://sonarcloud.io/dashboard?id=dllewellyn_event-sourcing-kmp)
+
 # What is this for?
 
 
