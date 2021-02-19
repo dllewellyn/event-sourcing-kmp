@@ -1,7 +1,6 @@
 package me.danielllewellyn.es.chains
 
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -15,7 +14,6 @@ import me.danielllewellyn.es.internal.util.uuid
 import me.danielllewellyn.es.model.EventModel
 import me.danielllewellyn.es.model.StorageActionEvent
 import me.danielllewellyn.es.model.StorageEvent
-import me.danielllewellyn.es.queueBuilder
 import me.danielllewellyn.es.queues.StorageActionQueue
 import me.dllewellyn.es.EventsTable
 
@@ -25,19 +23,21 @@ class StorageChain<EventGeneric>(
     private val eventValueDeserializer: DeserializationStrategy<EventGeneric>,
     private val onwardQueue: ESEventQueue<Unit, StorageEvent<EventGeneric>>,
     private val queueName: String,
-    private val scope: CoroutineScope = GlobalScope
-) : ESEventListener<EventGeneric>, StorageActionQueue() {
-
-    init {
-        refresh(scope)
-    }
+    private val scope: CoroutineScope
+) : ESEventListener<EventGeneric>, StorageActionQueue(scope) {
 
     override suspend fun processEvent(event: EventModel<StorageActionEvent>) {
-        when (event.value) {
+        when (val v = event.value) {
             StorageActionEvent.RefreshStorage -> refresh(scope = scope)
-        }
+            is StorageActionEvent.DeleteStorageItem -> deleteForEvent(v.uuid)
+        }.let {  }
+    }
+
+    private fun deleteForEvent(eventUuid : String) {
+        events.eventDatabaseQueries.deleteEvent(eventUuid)
     }
     private fun refresh(scope: CoroutineScope) {
+        println("Storage chain refreshing")
         scope.launch {
             events.eventDatabaseQueries.allEventsForName(queueName).executeAsList().asFlow()
                 .collect { item ->
@@ -49,6 +49,7 @@ class StorageChain<EventGeneric>(
                                 Json.decodeFromString(eventValueDeserializer, item.event),
                             ) {
                                 events.eventDatabaseQueries.deleteEvent(item.event_uuid)
+
                             }
                         )
                     )

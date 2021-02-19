@@ -1,5 +1,6 @@
 package me.danielllewellyn.es
 
+import kotlinx.coroutines.CoroutineScope
 import me.danielllewellyn.es.interfaces.ESEventListener
 import me.danielllewellyn.es.interfaces.ESReducer
 import me.danielllewellyn.es.interfaces.ESStateListener
@@ -10,7 +11,7 @@ import me.danielllewellyn.es.internal.util.ChainedEsReducer
 
 typealias Conditional<T> = (T) -> Boolean
 
-class ESChainReducerBuilder<State, Event>(private val defaultState: State) {
+class ESChainReducerBuilder<State, Event>(private val scope : CoroutineScope, private val defaultState: State) {
 
     private val list = mutableListOf<ESReducer<State, Event>>()
     private val stateList = mutableListOf<ESStateListener<State>>()
@@ -48,14 +49,15 @@ class ESChainReducerBuilder<State, Event>(private val defaultState: State) {
             ChainedEsReducer(list),
             ChainEsEventListener(eventList),
             ChainedEsStateListener(stateList),
+            scope,
             defaultState
         )
     }
 
 }
 
-fun <State, Event> queueBuilder(defaultState: State, block: ESChainReducerBuilder<State, Event>.() -> Unit) =
-    with(ESChainReducerBuilder<State, Event>(defaultState)) {
+fun <State, Event> queueBuilder(scope : CoroutineScope, defaultState: State, block: ESChainReducerBuilder<State, Event>.() -> Unit) =
+    with(ESChainReducerBuilder<State, Event>(scope, defaultState)) {
         block()
         build()
     }
