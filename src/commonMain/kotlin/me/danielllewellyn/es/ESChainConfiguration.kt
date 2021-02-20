@@ -1,33 +1,17 @@
 package me.danielllewellyn.es
 
-import kotlinx.coroutines.CoroutineScope
 import me.danielllewellyn.es.interfaces.ESEventListener
-import me.danielllewellyn.es.interfaces.ESReducer
-import me.danielllewellyn.es.interfaces.ESStateListener
-import me.danielllewellyn.es.internal.util.*
+import me.danielllewellyn.es.internal.util.ChainEsEventListener
 import me.danielllewellyn.es.internal.util.ChainedConditionalESEventListener
-import me.danielllewellyn.es.internal.util.ChainedConditionalEsReducer
-import me.danielllewellyn.es.internal.util.ChainedEsReducer
 
 typealias Conditional<T> = (T) -> Boolean
 
-class ESChainReducerBuilder<State, Event>(private val scope : CoroutineScope, private val defaultState: State) {
+class ESChainReducerBuilder<Event> {
 
-    private val list = mutableListOf<ESReducer<State, Event>>()
-    private val stateList = mutableListOf<ESStateListener<State>>()
     private val eventList = mutableListOf<ESEventListener<Event>>()
 
-    private val conditionalList = mutableListOf<Pair<ESReducer<State, Event>, Conditional<Event>>>()
     private val conditionalEventList = mutableListOf<Pair<ESEventListener<Event>, Conditional<Event>>>()
 
-
-    fun chain(reducer: ESReducer<State, Event>) {
-        list.add(reducer)
-    }
-
-    fun chain(state: ESStateListener<State>) {
-        stateList.add(state)
-    }
 
     fun chain(event: ESEventListener<Event>) {
         eventList.add(event)
@@ -37,27 +21,17 @@ class ESChainReducerBuilder<State, Event>(private val scope : CoroutineScope, pr
         conditionalEventList.add(Pair(event, condition))
     }
 
-    fun conditionalChain(event: ESReducer<State, Event>, condition: Conditional<Event>) {
-        conditionalList.add(Pair(event, condition))
-    }
-
-    fun build(): ESEventQueue<State, Event> {
+    fun build(): ESEventQueue<Event> {
         eventList.add(ChainedConditionalESEventListener(conditionalEventList))
-        list.add(ChainedConditionalEsReducer(conditionalList))
-
-        return DefaultEventQueue(
-            ChainedEsReducer(list),
-            ChainEsEventListener(eventList),
-            ChainedEsStateListener(stateList),
-            scope,
-            defaultState
-        )
+        return DefaultEventQueue(ChainEsEventListener(eventList))
     }
 
 }
 
-fun <State, Event> queueBuilder(scope : CoroutineScope, defaultState: State, block: ESChainReducerBuilder<State, Event>.() -> Unit) =
-    with(ESChainReducerBuilder<State, Event>(scope, defaultState)) {
+fun <Event> queueBuilder(
+    block: ESChainReducerBuilder<Event>.() -> Unit
+) =
+    with(ESChainReducerBuilder< Event>()) {
         block()
         build()
     }

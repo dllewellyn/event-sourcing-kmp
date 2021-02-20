@@ -4,10 +4,8 @@ buildscript {
         google()
         jcenter()
         mavenCentral()
-        maven(url = "https://dl.bintray.com/arkivanov/maven'com.squareup.sqldelight'")
     }
     dependencies {
-        classpath("com.squareup.sqldelight:gradle-plugin:1.4.4")
     }
 }
 
@@ -15,7 +13,6 @@ plugins {
     id("com.android.library")
     kotlin("multiplatform") version "1.4.20"
     kotlin("plugin.serialization") version "1.4.20"
-    id("com.squareup.sqldelight") version "1.4.4"
     `maven-publish`
 }
 
@@ -50,7 +47,6 @@ kotlin {
     val coroutinesVersion: String by project
     val googleTruthVersion: String by project
     val kotlinFlowTest: String by project
-    val sqlDelight: String by project
     val serializationVersion: String by project
 
     val iosEnabledStr: String by project
@@ -84,13 +80,11 @@ kotlin {
             dependencies {
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion-native-mt")
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationVersion")
-                implementation("com.squareup.sqldelight:coroutines-extensions:$sqlDelight")
 
             }
         }
         val jvmMain by getting {
             dependencies {
-                implementation("com.squareup.sqldelight:sqlite-driver:$sqlDelight")
             }
         }
         val commonTest by getting {
@@ -101,7 +95,6 @@ kotlin {
         }
         val androidMain by getting {
             dependencies {
-                implementation("com.squareup.sqldelight:android-driver:$sqlDelight")
             }
         }
         val androidTest by getting {
@@ -115,14 +108,12 @@ kotlin {
             val iosMain by getting {
                 dependencies {
                     implementation("org.jetbrains.kotlin:kotlin-stdlib")
-                    implementation("com.squareup.sqldelight:native-driver:$sqlDelight")
                 }
             }
             val iosTest by getting
             val iosX64Main by getting {
                 dependencies {
                     implementation("org.jetbrains.kotlin:kotlin-stdlib")
-                    implementation("com.squareup.sqldelight:native-driver:$sqlDelight")
                 }
             }
         }
@@ -138,12 +129,6 @@ kotlin {
 
             }
         }
-    }
-}
-
-sqldelight {
-    database("Events") {
-        packageName = "me.daniellewellyn.es"
     }
 }
 

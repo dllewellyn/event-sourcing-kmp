@@ -1,80 +1,106 @@
 # What is this for?
 
 
-This library is intended to provide functionality cross platform to be able to 
-communicate miminal amounts of information across multiple applications. The idea
-centres on two concepts
-
+This library is intended to provide functionality cross platform to be able to fire and respond to events,
+as well as store and those events for future processing.
 
 * Events
-* State
 
 Let's talk through an example using a note. A sample event might be 'Create note'.
 
-App -> Send event (Create note) -> State is calculated from this state
+App -> Send event (Create note) -> Repository listens to the event and creates a note
 
-Now, we might set the title on this state:
+Now, we might set the title on this item:
 
-App -> Send event (Set note title) -> State is recaculated for this state.
+App -> Send event (Set note title) -> Repository gets event and changes the notes title
 
-
-This brings us onto the key components you need to implement in your application:
-
-* Event classes
-
-These events are dataclasses that are able to be serialized. 
-
-* State
-  
-This a class to encapsulate the current state of an object
-
-* State builders
-
-This is a class which takes all events and calculates the state
-
-
-Something else to note:
-
-In our example, our "Create note" and "Update note" object pertains to a particular
-note. We need a concept them for linking specific events together. Your handler will 
-take an item of type `Event` which has a `uid` property on it. If the UID is null it 
-is assumed to be a 'global event'. 
 
 Sample usage:
 
 ```kotlin
-// State: 
-data class NoteState(val name : String, val body : String)
+// Events 
 
-// Events:
-sealed class NoteEvents {
-    object CreateEvent : NoteEvents()
-    class UpdateTitle(val newTitle : String) : NoteEvent()
+@Serializable
+sealed class DemoEvents {
+    @Serializable
+    data class Create(val text: String, val uuid: String) : DemoEvents()
+
+    @Serializable
+    data class Update(val text: String, val uuid: String) : DemoEvents()
+
+    @Serializable
+    data class Remove(val uuid: String) : DemoEvents()
 }
 
-// Handler implementation
+// A single note
+data class Note(val text: String, val uuid: String)
 
-class NoteEventHandler : ESReducer<NoteState, NoteEvents>() {
-    
-    override fun NoteState.reduce(event : EventModel<NoteEvents>) =
-        when (event) {
-           CreateEvent ->  {
-                return NoteState("", "")
+// Sample repository
+class FakeRepository : ESEventQueue<DemoEvents> {
+
+    private val _repository = mutableListOf<Note>()
+    val repository: List<Note> = _repository
+
+    override suspend fun processEvent(event: EventModel<DemoEvents>) {
+        println(event)
+        when (val v = event.value) {
+            is DemoEvents.Create -> _repository.add(Note(v.text, v.uuid))
+            is DemoEvents.Update -> with(_repository.firstOrNull { it.uuid == v.uuid }) {
+                this?.let {
+                    _repository.remove(it)
+                    _repository.add(it.copy(text = v.text))
+                }
             }
-           is UpdateTitle -> {
-               copy(title = event.value.newTitle)
-            } 
-        }
+            is DemoEvents.Remove -> _repository.removeAll { it.uuid == v.uuid }
+        }.let {}
+    }
+
 }
+
+val repository = FakeRepository()
+
+runBlocking {
+
+    val storageQueue = queueBuilder<DemoEvents> {
+        chain(
+            StorageChain(
+                MemoryStorageChain(),
+                DemoEvents.serializer(),
+                repository,
+                "demo_events",
+                GlobalScope
+            )
+        )
+    }
+
+    storageQueue.processEvent(EventModel.new(DemoEvents.Create("Abc", "123")))
+    storageQueue.processEvent(EventModel.new(DemoEvents.Create("Def", "234")))
+    storageQueue.processEvent(EventModel.new(DemoEvents.Update("Hij", "123")))
+    storageQueue.processEvent(EventModel.new(DemoEvents.Remove("234")))
+
+    with(assertThat(repository.repository)) {
+        contains(Note("Hij", "123"))
+        hasSize(1)
+    }
+
+}
+
 ```
 
 # Interfaces
 
-ESReducer - this is used to convert an event into a state
 ESEventListener - this is used to listen for events
-ESState - after all reducers have run, the new state is emitted
 
-# Queue 
+# Storage
 
-You can add an item to a queue when using the queue builder 
+There are three-ish use cases for storage. 
+
+1. You want to permanently store events, but not replay them on launch
+2. You want to store events, but remove them when the next stage in the queue is processed. For example,
+    you might want to store an event then send it to a remote server. If sending fails, you might want to
+    retry the next time the user launches your app
+3. You might want to store events, then replay them every time you launch the app. For example, you might
+    not store your repository on disk but instead recalculate it every time
+   
+
 

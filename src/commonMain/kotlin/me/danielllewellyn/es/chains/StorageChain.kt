@@ -4,77 +4,64 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-import kotlinx.serialization.DeserializationStrategy
-import kotlinx.serialization.SerializationStrategy
-import kotlinx.serialization.json.Json
-import me.daniellewellyn.es.Events
+import kotlinx.serialization.KSerializer
+import me.danielllewellyn.es.ESConfiguration
 import me.danielllewellyn.es.ESEventQueue
 import me.danielllewellyn.es.interfaces.ESEventListener
-import me.danielllewellyn.es.internal.util.uuid
+import me.danielllewellyn.es.interfaces.ESEventStorage
 import me.danielllewellyn.es.model.EventModel
-import me.danielllewellyn.es.model.StorageActionEvent
-import me.danielllewellyn.es.model.StorageEvent
+import me.danielllewellyn.es.model.EventStorage
 import me.danielllewellyn.es.queues.StorageActionQueue
-import me.dllewellyn.es.EventsTable
 
 class StorageChain<EventGeneric>(
-    private val events: Events,
-    private val eventValueSerializer: SerializationStrategy<EventGeneric>,
-    private val eventValueDeserializer: DeserializationStrategy<EventGeneric>,
-    private val onwardQueue: ESEventQueue<Unit, StorageEvent<EventGeneric>>,
-    private val queueName: String,
-    private val scope: CoroutineScope
-) : ESEventListener<EventGeneric>, StorageActionQueue(scope) {
+    private val eventStorage: ESEventStorage,
+    private val eventValueSerializer: KSerializer<EventGeneric>,
+    private val onwardQueue: ESEventQueue<EventGeneric>,
+    replayOnLaunch: Boolean,
+    private val deleteAfterCompletion: Boolean,
+    eventType: String,
+    scope: CoroutineScope
+) : StorageActionQueue<EventGeneric>(eventType), ESEventListener<EventGeneric> {
 
-    override suspend fun processEvent(event: EventModel<StorageActionEvent>) {
+    init {
+        if (replayOnLaunch) {
+            refresh(scope)
+        }
+    }
+
+    override suspend fun processEvent(event: EventModel<EventStorage<EventGeneric>>) {
         when (val v = event.value) {
-            StorageActionEvent.RefreshStorage -> refresh(scope = scope)
-            is StorageActionEvent.DeleteStorageItem -> deleteForEvent(v.uuid)
-        }.let {  }
+            is EventStorage.EventStorageItem -> eventStorage.storeEvent(
+                v.eventType,
+                eventValueSerializer,
+                v.item,
+                v.uuid
+            ).also {
+                onwardQueue.processEvent(EventModel(event.uuid, v.item))
+                if (deleteAfterCompletion) {
+                    processEvent(EventModel.new(v.toRemoveEvent()))
+                }
+            }
+            is EventStorage.RemoveEvent -> eventStorage.removeItem(v)
+        }
     }
 
-    private fun deleteForEvent(eventUuid : String) {
-        events.eventDatabaseQueries.deleteEvent(eventUuid)
-    }
     private fun refresh(scope: CoroutineScope) {
-        println("Storage chain refreshing")
+        ESConfiguration.verboseLogger?.invoke("Going to load events")
         scope.launch {
-            events.eventDatabaseQueries.allEventsForName(queueName).executeAsList().asFlow()
-                .collect { item ->
-                    onwardQueue.processEvent(
-                        EventModel.new(
-                            StorageEvent(
-                                item.event_uuid,
-                                item.item_uuid,
-                                Json.decodeFromString(eventValueDeserializer, item.event),
-                            ) {
-                                events.eventDatabaseQueries.deleteEvent(item.event_uuid)
-
-                            }
-                        )
-                    )
+            eventStorage.retrieveAllStoredEventsForType(eventType, eventValueSerializer)
+                .also { ESConfiguration.verboseLogger?.invoke("Loaded ${it.size} events from storage for ${eventType}}") }
+                .asFlow()
+                .collect {
+                    onwardQueue.processEvent(EventModel(it.uuid, it.item))
+                    if (deleteAfterCompletion) {
+                        processEvent(EventModel.new(it.toRemoveEvent()))
+                    }
                 }
         }
     }
 
     override suspend fun onEvent(event: EventModel<EventGeneric>) {
-        with(
-            EventsTable(
-                event_uuid = uuid(),
-                item_uuid = event.uuid,
-                event = Json.encodeToString(eventValueSerializer, event.value),
-                eventName = queueName
-            )
-        ) {
-            events.eventDatabaseQueries.insertEvent(this)
-
-            val onwardEvent = EventModel.new(StorageEvent(event_uuid, item_uuid, event.value) {
-                events.eventDatabaseQueries.deleteEvent(event.uuid)
-            })
-            onwardQueue.processEvent(onwardEvent)
-        }
-
-
+        processEvent(EventModel(event.uuid, EventStorage.EventStorageItem(eventType, event.uuid, event.value)))
     }
-
 }
