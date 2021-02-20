@@ -94,6 +94,7 @@ internal class MasterQueueTest {
                         DemoEvents.serializer(),
                         repository,
                         true,
+                        true,
                         "demo_events",
                         GlobalScope
                     )
